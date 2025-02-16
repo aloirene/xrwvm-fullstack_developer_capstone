@@ -58,25 +58,28 @@ def registration(request):
         login(request, user)
         return JsonResponse({"userName": username, "status": "Authenticated"})
 
-# 🚀 Get list of dealerships
+#Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
 def get_dealerships(request, state="All"):
+    """
+    Fetch list of dealerships.
+    """
     endpoint = "/fetchDealers" if state == "All" else f"/fetchDealers/{state}"
     dealerships = get_request(endpoint)
-    return JsonResponse({"status": 200, "dealers": dealerships})
 
+    # Debugging output
+    print(f"🔍 API Request: {endpoint}")  # What API path is called?
+    print(f"🔍 Raw API Response: {dealerships}")  # What does the API return?
+
+    return JsonResponse({"status": 200, "dealers": dealerships})
 # 🚀 Get dealer details by ID
 def get_dealer_details(request, dealer_id):
-    """
-    Fetch dealer details using the /fetchDealer/<dealer_id> endpoint.
-    """
-    dealer_endpoint = f"/fetchDealer/{dealer_id}"
-    dealer_data = get_request(dealer_endpoint)
-
-    if dealer_data:
-        return JsonResponse(dealer_data, safe=False)
+    if(dealer_id):
+        endpoint = "/fetchDealer/"+str(dealer_id)
+        dealership = get_request(endpoint)
+        return JsonResponse({"status":200,"dealer":dealership})
     else:
-        return JsonResponse({"error": "Dealer not found"}, status=404)
-
+        return JsonResponse({"status":400,"message":"Bad Request"})
+        
 # 🚀 Get dealer reviews by ID
 def get_dealer_reviews(request, dealer_id):
     """
@@ -120,3 +123,10 @@ def add_review(request):
             return JsonResponse({"status": 500, "message": f"Error in posting review: {str(e)}"})
     else:
         return JsonResponse({"status": 403, "message": "Unauthorized"})
+
+def get_cars(request):
+    """
+    Fetch a list of car models from the database.
+    """
+    cars = list(CarModel.objects.all().values())  # Convert QuerySet to list
+    return JsonResponse({"cars": cars})
