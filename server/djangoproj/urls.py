@@ -32,6 +32,5 @@ urlpatterns = [
     path('register/', TemplateView.as_view(template_name="index.html")),
 
     # ✅ Dealers Routes
-    path('dealers/', views.get_dealerships, name="dealers"),  # 🚀 Calls Django view
-    path('dealer/<int:dealer_id>/', views.get_dealer_details, name="dealer_detail"),  # 🚀 Fetches a specific dealer
-] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    path('dealers/', TemplateView.as_view(template_name="index.html")),  # 🚀 Calls Django view
+    path('dealer/<int:dealer_id>/', views.get_dealer_details, name="dealer_detail"),] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

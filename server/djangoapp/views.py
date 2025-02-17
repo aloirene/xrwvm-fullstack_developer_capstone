@@ -5,9 +5,8 @@ from django.contrib.auth import login, authenticate, logout
 from django.views.decorators.csrf import csrf_exempt
 import logging
 import json
-from .populate import initiate
 from .models import CarMake, CarModel
-from .restapis import get_request, analyze_review_sentiments, post_review  # Import functions
+from .restapis import get_request, analyze_review_sentiments, post_review
 
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
@@ -18,9 +17,9 @@ def login_user(request):
     data = json.loads(request.body)
     username = data['userName']
     password = data['password']
-    
+
     user = authenticate(username=username, password=password)
-    response_data = {"userName": username}
+    response_data = {"userName": username, "status": "Failed"}
 
     if user is not None:
         login(request, user)
@@ -32,7 +31,7 @@ def login_user(request):
 def logout_request(request):
     logout(request)
     user_name = request.user.username if request.user.is_authenticated else ""
-    return JsonResponse({"userName": user_name})
+    return JsonResponse({"userName": user_name, "status": "Logged out"})
 
 # 🚀 Register user
 @csrf_exempt
@@ -58,48 +57,43 @@ def registration(request):
         login(request, user)
         return JsonResponse({"userName": username, "status": "Authenticated"})
 
-#Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
+# 🚀 Fetch dealerships
 def get_dealerships(request, state="All"):
-    """
-    Fetch list of dealerships.
-    """
     endpoint = "/fetchDealers" if state == "All" else f"/fetchDealers/{state}"
     dealerships = get_request(endpoint)
 
-    # Debugging output
-    print(f"🔍 API Request: {endpoint}")  # What API path is called?
-    print(f"🔍 Raw API Response: {dealerships}")  # What does the API return?
+    print("🔍 API Request:", endpoint)
+    print("🔍 API Response:", dealerships)
+
+    if dealerships is None:
+        return JsonResponse({"error": "Failed to fetch dealerships"}, status=500)
 
     return JsonResponse({"status": 200, "dealers": dealerships})
-# 🚀 Get dealer details by ID
+
+# 🚀 Fetch dealer details by ID
 def get_dealer_details(request, dealer_id):
-    if(dealer_id):
-        endpoint = "/fetchDealer/"+str(dealer_id)
-        dealership = get_request(endpoint)
-        return JsonResponse({"status":200,"dealer":dealership})
+    endpoint = f"/fetchDealer/{dealer_id}"
+    dealer_data = get_request(endpoint)
+
+    if dealer_data:
+        return JsonResponse(dealer_data, safe=False)
     else:
-        return JsonResponse({"status":400,"message":"Bad Request"})
-        
-# 🚀 Get dealer reviews by ID
+        return JsonResponse({"error": "Dealer not found"}, status=404)
+
+# 🚀 Fetch dealer reviews
 def get_dealer_reviews(request, dealer_id):
-    """
-    Fetch dealer reviews using the /fetchReviews/dealer/<dealer_id> endpoint.
-    Analyze the sentiment of each review and return the results.
-    """
-    reviews_endpoint = f"/fetchReviews/dealer/{dealer_id}"
-    reviews_data = get_request(reviews_endpoint)
+    endpoint = f"/fetchReviews/dealer/{dealer_id}"
+    reviews_data = get_request(endpoint)
 
     if not reviews_data:
         return JsonResponse({"error": "No reviews found"}, status=404)
 
-    processed_reviews = []
-    for review in reviews_data:
-        sentiment = analyze_review_sentiments(review.get("review", ""))
-        review_detail = {
+    processed_reviews = [
+        {
             "id": review.get("id"),
             "dealer_id": review.get("dealer_id"),
             "review": review.get("review"),
-            "sentiment": sentiment,
+            "sentiment": analyze_review_sentiments(review.get("review", "")),
             "name": review.get("name"),
             "purchase": review.get("purchase"),
             "purchase_date": review.get("purchase_date"),
@@ -107,7 +101,8 @@ def get_dealer_reviews(request, dealer_id):
             "car_model": review.get("car_model"),
             "car_year": review.get("car_year")
         }
-        processed_reviews.append(review_detail)
+        for review in reviews_data
+    ]
 
     return JsonResponse({"reviews": processed_reviews}, safe=False)
 
@@ -124,9 +119,7 @@ def add_review(request):
     else:
         return JsonResponse({"status": 403, "message": "Unauthorized"})
 
+# 🚀 Fetch all cars
 def get_cars(request):
-    """
-    Fetch a list of car models from the database.
-    """
-    cars = list(CarModel.objects.all().values())  # Convert QuerySet to list
+    cars = list(CarModel.objects.all().values())
     return JsonResponse({"cars": cars})
